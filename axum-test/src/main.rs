@@ -4,9 +4,9 @@ use axum::Extension;
 use std::net::SocketAddr;
 use tokio::signal;
 use tokio::sync::oneshot;
-use tower_http::{catch_panic::CatchPanicLayer};
-use tower_http::trace::{self, TraceLayer};
-use tracing::{debug, error, info,Level};
+use tower_http::catch_panic::CatchPanicLayer;
+use tower_http::trace::{self, TraceLayer, OnRequest, OnResponse};
+use tracing::{debug, error, info, Level};
 use axum_test::application::application::Application;
 
 pub type Router<S = Application> = axum::Router<S>;
@@ -65,6 +65,32 @@ pub async fn run(application: Application) -> Result<()> {
     Ok(())
 }
 
+#[derive(Clone, Debug)]
+struct MyOnRequest {}
+
+impl<B: std::fmt::Debug> OnRequest<B> for MyOnRequest {
+    fn on_request(&mut self, request: &axum::http::Request<B>, _span: &tracing::Span) {
+        tracing::info!(
+            "request: {} {} {:?}",
+            request.method(),
+            request.uri().path(),
+            request.body()
+        );
+    }
+}
+
+#[derive(Clone, Debug)]
+struct MyOnResponse {}
+
+impl<B: std::fmt::Debug> OnResponse<B> for MyOnResponse {
+    fn on_response(self, response: &axum::http::Response<B>, _latency: core::time::Duration, _: &tracing::Span) {
+        tracing::info!(
+            "response: {:?}",
+            response.body()
+        );
+    }
+}
+
 pub async fn start(app: Application) -> anyhow::Result<()> {
     const PORT: u16 = 4000;
 
@@ -85,7 +111,10 @@ pub async fn start(app: Application) -> anyhow::Result<()> {
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
-                .on_response(trace::DefaultOnResponse::new().level(Level::INFO))
+                .on_request(MyOnRequest{})
+                .on_response(MyOnResponse{})
+                //.on_request(trace::DefaultOnRequest::new())
+                //.on_response(trace::DefaultOnResponse::new().level(Level::INFO))
             )
         .layer(CatchPanicLayer::new());
 
