@@ -202,7 +202,6 @@ dependencies = [
  "color-eyre",
  "console-subscriber",
  "erased-serde",
- "once_cell",
  "serde",
  "serde_json",
  "tokio",

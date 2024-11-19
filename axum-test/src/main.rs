@@ -5,7 +5,8 @@ use std::net::SocketAddr;
 use tokio::signal;
 use tokio::sync::oneshot;
 use tower_http::{catch_panic::CatchPanicLayer};
-use tracing::{debug, error, info};
+use tower_http::trace::{self, TraceLayer};
+use tracing::{debug, error, info,Level};
 use axum_test::application::application::Application;
 
 pub type Router<S = Application> = axum::Router<S>;
@@ -81,6 +82,11 @@ pub async fn start(app: Application) -> anyhow::Result<()> {
     let api = api
         .layer(Extension(app.clone()))
         .with_state(app.clone())
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
+                .on_response(trace::DefaultOnResponse::new().level(Level::INFO))
+            )
         .layer(CatchPanicLayer::new());
 
     let router = Router::new().nest("/api", api);
