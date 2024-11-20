@@ -8,13 +8,13 @@ use tower_http::trace::{self, TraceLayer, OnRequest, OnResponse};
 use tracing::{debug, error, info, Level};
 use axum_test::application::application::Application;
 use axum::{
-    body::{Body, Bytes},
+    body::Body,
     http::StatusCode,
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{get, post}
 };
 use http;
-
+use http_body_util::BodyExt;
 
 
 pub type Router<S = Application> = axum::Router<S>;
@@ -95,6 +95,26 @@ impl<B> OnResponse<B> for MyOnResponse {
     }
 }
 
+async fn printing_middleware(request: axum::extract::Request, next: axum::middleware::Next) -> Result<impl IntoResponse, Response> {
+    let request = buffer_request_body(request).await?;
+
+    Ok(next.run(request).await)
+}
+
+async fn buffer_request_body(request: axum::extract::Request) -> Result<axum::extract::Request, Response> {
+    let (parts, body) = request.into_parts();
+
+    let bytes = body
+        .collect()
+        .await
+        .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()).into_response())?
+        .to_bytes();
+
+    tracing::debug!(body = ?bytes);
+
+    Ok(axum::http::Request::from_parts(parts, Body::from(bytes)))
+}
+
 pub async fn start(app: Application) -> anyhow::Result<()> {
     const PORT: u16 = 4000;
 
@@ -102,7 +122,8 @@ pub async fn start(app: Application) -> anyhow::Result<()> {
     let bind = SocketAddr::new("127.0.0.1".parse()?, PORT);
 
     let routes = Router::new()
-        .route("/version", get(axum_test::route_handlers::version));
+        .route("/version", get(axum_test::route_handlers::version))
+        .route("/postme", post(axum_test::route_handlers::handle_poster));
 
     // both protected and public merged into api
     let mut api = Router::new().merge(routes);
@@ -120,7 +141,8 @@ pub async fn start(app: Application) -> anyhow::Result<()> {
                 //.on_request(trace::DefaultOnRequest::new())
                 //.on_response(trace::DefaultOnResponse::new().level(Level::INFO))
             )
-        .layer(CatchPanicLayer::new());
+        .layer(CatchPanicLayer::new())
+        .layer(axum::middleware::from_fn(printing_middleware));
 
     let router = Router::new().nest("/api", api);
 

@@ -19,3 +19,7 @@ pub async fn health(Extension(_app): Extension<Application>) -> Result<impl Into
 pub async fn version(Extension(_app): Extension<Application>) -> Result<impl IntoResponse> {
     Ok(json(HealthCheckResponse { done: true }))
 }
+
+pub async fn handle_poster(Extension(_app): Extension<Application>) -> Result<impl IntoResponse> {
+    Ok(json(HealthCheckResponse { done: true }))
+}
