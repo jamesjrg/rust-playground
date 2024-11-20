@@ -1,5 +1,4 @@
 use anyhow::Result;
-use axum::routing::get;
 use axum::Extension;
 use std::net::SocketAddr;
 use tokio::signal;
@@ -8,6 +7,15 @@ use tower_http::catch_panic::CatchPanicLayer;
 use tower_http::trace::{self, TraceLayer, OnRequest, OnResponse};
 use tracing::{debug, error, info, Level};
 use axum_test::application::application::Application;
+use axum::{
+    body::{Body, Bytes},
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    routing::get,
+};
+use http;
+
+
 
 pub type Router<S = Application> = axum::Router<S>;
 
@@ -68,13 +76,12 @@ pub async fn run(application: Application) -> Result<()> {
 #[derive(Clone, Debug)]
 struct MyOnRequest {}
 
-impl<B: std::fmt::Debug> OnRequest<B> for MyOnRequest {
-    fn on_request(&mut self, request: &axum::http::Request<B>, _span: &tracing::Span) {
+impl<B> OnRequest<B> for MyOnRequest {
+    fn on_request(&mut self, request: &http::Request<B>, _span: &tracing::Span) {
         tracing::info!(
-            "request: {} {} {:?}",
+            "request: {} {}",
             request.method(),
-            request.uri().path(),
-            request.body()
+            request.uri().path()
         );
     }
 }
@@ -82,12 +89,9 @@ impl<B: std::fmt::Debug> OnRequest<B> for MyOnRequest {
 #[derive(Clone, Debug)]
 struct MyOnResponse {}
 
-impl<B: std::fmt::Debug> OnResponse<B> for MyOnResponse {
-    fn on_response(self, response: &axum::http::Response<B>, _latency: core::time::Duration, _: &tracing::Span) {
-        tracing::info!(
-            "response: {:?}",
-            response.body()
-        );
+impl<B> OnResponse<B> for MyOnResponse {
+    fn on_response(self, response: &http::Response<B>, _latency: core::time::Duration, _: &tracing::Span) {
+        tracing::info!("hello");
     }
 }
 
@@ -120,9 +124,8 @@ pub async fn start(app: Application) -> anyhow::Result<()> {
 
     let router = Router::new().nest("/api", api);
 
-    axum::Server::bind(&bind)
-        .serve(router.into_make_service())
-        .await?;
+    let listener = tokio::net::TcpListener::bind(&bind).await.unwrap();
+    axum::serve(listener, router.into_make_service()).await.unwrap();
 
     Ok(())
 }
