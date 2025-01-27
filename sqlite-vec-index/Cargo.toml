@@ -1,0 +1,21 @@
+[package]
+name = "sqlite-vec-index"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.95"
+async-trait = "0.1.85"
+ndarray = "0.16.1"
+ort = "1.16.3"
+rayon = "1.10.0"
+regex = "1.11.1"
+rusqlite = { version = "0.33.0", features = ["bundled"] }
+scc = "2.3.0"
+serde = "1.0.217"
+serde_json = "1.0.137"
+smallvec = "1.13.2"
+sqlite-vec = "0.1.6"
+sqlx = "0.8.3"
+tokio = { version = "1.43.0", features = ["fs"] }
+tracing = "0.1.41"
