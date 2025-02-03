@@ -1,0 +1,9 @@
+[package]
+name = "mcp-client-test-antigma-labs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.95"
+mcp-sdk = "0.0.3"
+tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
